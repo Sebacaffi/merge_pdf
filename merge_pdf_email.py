@@ -9,6 +9,7 @@ import win32com.client as win32
 
 CONFIG_FILE = "config.json"
 
+
 class PDFMergerApp:
     def __init__(self, root):
         self.root = root
@@ -27,7 +28,9 @@ class PDFMergerApp:
         tk.Label(root, text="Email:").grid(row=1, column=0, padx=10, pady=10)
         tk.Entry(root, textvariable=self.email_var, width=50).grid(row=1, column=1, padx=10, pady=10)
 
-        tk.Button(root, text="Unir PDF's y Enviar Email", command=self.merge_pdfs_and_send_email).grid(row=2, column=0, columnspan=2, padx=10, pady=10)
+        tk.Button(root, text="Unir PDF's y Enviar Email", command=self.merge_pdfs_and_send_email).grid(row=2, column=0,
+                                                                                                       columnspan=2,
+                                                                                                       padx=10, pady=10)
 
         self.create_menu()
 
@@ -47,11 +50,14 @@ class PDFMergerApp:
 
         tk.Label(config_window, text="Carpeta Origen:").grid(row=0, column=0, padx=10, pady=10)
         tk.Entry(config_window, textvariable=self.source_path_var, width=50).grid(row=0, column=1, padx=10, pady=10)
-        tk.Button(config_window, text="Seleccionar", command=self.select_source_folder).grid(row=0, column=2, padx=10, pady=10)
+        tk.Button(config_window, text="Seleccionar", command=self.select_source_folder).grid(row=0, column=2, padx=10,
+                                                                                             pady=10)
 
         tk.Label(config_window, text="Carpeta Destino:").grid(row=1, column=0, padx=10, pady=10)
-        tk.Entry(config_window, textvariable=self.destination_path_var, width=50).grid(row=1, column=1, padx=10, pady=10)
-        tk.Button(config_window, text="Seleccionar", command=self.select_destination_folder).grid(row=1, column=2, padx=10, pady=10)
+        tk.Entry(config_window, textvariable=self.destination_path_var, width=50).grid(row=1, column=1, padx=10,
+                                                                                       pady=10)
+        tk.Button(config_window, text="Seleccionar", command=self.select_destination_folder).grid(row=1, column=2,
+                                                                                                  padx=10, pady=10)
 
     def load_config(self):
         if os.path.exists(CONFIG_FILE):
@@ -137,6 +143,7 @@ class PDFMergerApp:
     def on_closing(self):
         self.save_config()
         self.root.destroy()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
