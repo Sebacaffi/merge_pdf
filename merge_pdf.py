@@ -25,7 +25,7 @@ class PDFMergerApp:
         self.tab_merge = ttk.Frame(self.tab_control)
         self.tab_send = ttk.Frame(self.tab_control)
         self.tab_control.add(self.tab_merge, text='Unir PDFs')
-        self.tab_control.add(self.tab_send, text='Enviar PDFs')
+        #self.tab_control.add(self.tab_send, text='Enviar PDFs')
         self.tab_control.pack(expand=1, fill='both')
 
         self.setup_merge_tab()
@@ -88,6 +88,7 @@ class PDFMergerApp:
         return None
 
     def merge_pdfs(self):
+        """Une los PDFs especificados y elimina el ZIP original si se procesan correctamente."""
         din_numbers = [din.strip() for din in self.din_numbers_var.get().split(',')]
         source_path = self.source_path_var.get()
 
@@ -98,13 +99,16 @@ class PDFMergerApp:
         destination_folder = os.path.join(source_path, "pdf_pendientes_envio")
         os.makedirs(destination_folder, exist_ok=True)
 
+        all_processed_successfully = True  # Flag para verificar si todo salió bien
+
         for din_number in din_numbers:
             zip_file_path = self.find_zip_file(source_path, din_number)
             if not zip_file_path:
                 messagebox.showwarning("Error", f"No se encontró el archivo ZIP para DIN: {din_number}")
+                all_processed_successfully = False
                 continue
 
-            required_files = ["NOTA DE COBRO", "DIN", "COMPROBANTE PAGO TESORERIA"]
+            required_files = ["FACTURA TERCEROS", "NOTA DE COBRO"]
             pdf_merger = PdfMerger()
             missing_files = []
 
@@ -119,19 +123,33 @@ class PDFMergerApp:
                                 pdf_merger.append(pdf_file)
 
                 if missing_files:
-                    messagebox.showwarning("Error", f"Faltan los siguientes archivos en el ZIP de {din_number}: {', '.join(missing_files)}")
-                    continue
+                    messagebox.showwarning(
+                        "Error",
+                        f"Faltan los siguientes archivos en el ZIP de {din_number}: {', '.join(missing_files)}"
+                    )
+                    all_processed_successfully = False
+                    continue  # No procesar este DIN si faltan archivos
 
                 output_file_name = f"{din_number}.pdf"
                 output_file_path = os.path.join(destination_folder, output_file_name)
                 with open(output_file_path, 'wb') as f_out:
                     pdf_merger.write(f_out)
 
+                # Eliminar el archivo ZIP después de procesarlo exitosamente
+                os.remove(zip_file_path)
+
             except Exception as e:
                 messagebox.showerror("Error", f"Ha ocurrido un error con DIN {din_number}: {str(e)}")
+                all_processed_successfully = False
 
-        messagebox.showinfo("Éxito", "PDFs unidos correctamente. Revise la carpeta pdf_pendientes_envio.")
+        if all_processed_successfully:
+            messagebox.showinfo("Éxito", "Todos los PDFs se unieron correctamente.")
+        else:
+            messagebox.showwarning("Advertencia", "Algunos PDFs no se procesaron correctamente. Revise los errores.")
+
         self.save_config()
+
+
 
     def update_pdf_list(self):
         self.pdf_listbox.delete(0, tk.END)
