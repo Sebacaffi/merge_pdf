@@ -88,7 +88,7 @@ class PDFMergerApp:
         return None
 
     def merge_pdfs(self):
-        """Une los PDFs especificados y elimina el ZIP original si se procesan correctamente."""
+        """Une todos los PDFs dentro del ZIP y elimina el ZIP original si se procesan correctamente."""
         din_numbers = [din.strip() for din in self.din_numbers_var.get().split(',')]
         source_path = self.source_path_var.get()
 
@@ -109,38 +109,49 @@ class PDFMergerApp:
                 continue
 
             pdf_merger = PdfMerger()
-            missing_files = []
-
-            # Archivos requeridos, con alternativas
-            required_files = [
-                (["FACTURA TERCEROS", "FACTURA EXENTA"], False),  # Uno de los dos debe estar
-                (["NOTA DE COBRO"], True)  # NOTA DE COBRO es obligatorio
-            ]
+            nota_de_cobro_found = False  # Verificar si "NOTA DE COBRO" está presente
 
             try:
                 with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-                    # Intentar agregar los archivos según el orden requerido
-                    for file_names, is_mandatory in required_files:
-                        found = False
-                        for file_name in file_names:
-                            matching_files = [f for f in zip_ref.namelist() if file_name in f and f.endswith('.pdf')]
-                            if matching_files:
-                                # Agregar el primer match encontrado
-                                pdf_merger.append(zip_ref.open(matching_files[0]))
-                                found = True
-                                break  # No necesitamos buscar más, ya tenemos el archivo
+                    # Filtrar solo archivos PDF dentro del ZIP
+                    pdf_files = [f for f in zip_ref.namelist() if f.endswith('.pdf')]
 
-                        if is_mandatory and not found:
-                            missing_files.extend(file_names)
+                    # Validar que haya al menos 2 archivos PDF
+                    if len(pdf_files) < 2:
+                        messagebox.showwarning(
+                            "Error",
+                            f"El ZIP para DIN {din_number} no contiene al menos 2 archivos PDF."
+                        )
+                        all_processed_successfully = False
+                        continue
 
-                if missing_files:
-                    messagebox.showwarning(
-                        "Error",
-                        f"Faltan los siguientes archivos en el ZIP de {din_number}: {', '.join(missing_files)}"
-                    )
-                    all_processed_successfully = False
-                    continue  # No procesar este DIN si faltan archivos obligatorios
+                    # Separar "NOTA DE COBRO" para agregarla al final
+                    other_pdfs = []
+                    for pdf_file in pdf_files:
+                        if "NOTA DE COBRO" in pdf_file:
+                            nota_de_cobro_found = True
+                            nota_de_cobro = pdf_file
+                        else:
+                            other_pdfs.append(pdf_file)
 
+                    # Verificar si falta "NOTA DE COBRO"
+                    if not nota_de_cobro_found:
+                        messagebox.showwarning(
+                            "Error", f"El ZIP para DIN {din_number} no contiene 'NOTA DE COBRO'."
+                        )
+                        all_processed_successfully = False
+                        continue
+
+                    # Agregar otros PDFs al merger
+                    for pdf_file in other_pdfs:
+                        with zip_ref.open(pdf_file) as f:
+                            pdf_merger.append(f)
+
+                    # Agregar "NOTA DE COBRO" al final
+                    with zip_ref.open(nota_de_cobro) as f:
+                        pdf_merger.append(f)
+
+                # Guardar el PDF unido
                 output_file_name = f"{din_number}.pdf"
                 output_file_path = os.path.join(destination_folder, output_file_name)
                 with open(output_file_path, 'wb') as f_out:
@@ -160,6 +171,7 @@ class PDFMergerApp:
 
         self.save_config()
 
+    
     def update_pdf_list(self):
         self.pdf_listbox.delete(0, tk.END)
         source_path = self.source_path_var.get()
