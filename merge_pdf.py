@@ -3,7 +3,7 @@ from tkinter import filedialog, messagebox, StringVar, Toplevel, ttk
 import os
 import re
 import json
-from PyPDF2 import PdfMerger
+from PyPDF2 import PdfMerger, PdfReader
 import win32com.client as win32
 import zipfile
 import shutil
@@ -108,19 +108,30 @@ class PDFMergerApp:
                 all_processed_successfully = False
                 continue
 
-            required_files = ["FACTURA TERCEROS", "NOTA DE COBRO"]
             pdf_merger = PdfMerger()
             missing_files = []
 
+            # Archivos requeridos, con alternativas
+            required_files = [
+                (["FACTURA TERCEROS", "FACTURA EXENTA"], False),  # Uno de los dos debe estar
+                (["NOTA DE COBRO"], True)  # NOTA DE COBRO es obligatorio
+            ]
+
             try:
                 with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
-                    for req_file in required_files:
-                        matching_files = [f for f in zip_ref.namelist() if req_file in f and f.endswith('.pdf')]
-                        if not matching_files:
-                            missing_files.append(req_file)
-                        else:
-                            with zip_ref.open(matching_files[0]) as pdf_file:
-                                pdf_merger.append(pdf_file)
+                    # Intentar agregar los archivos según el orden requerido
+                    for file_names, is_mandatory in required_files:
+                        found = False
+                        for file_name in file_names:
+                            matching_files = [f for f in zip_ref.namelist() if file_name in f and f.endswith('.pdf')]
+                            if matching_files:
+                                # Agregar el primer match encontrado
+                                pdf_merger.append(zip_ref.open(matching_files[0]))
+                                found = True
+                                break  # No necesitamos buscar más, ya tenemos el archivo
+
+                        if is_mandatory and not found:
+                            missing_files.extend(file_names)
 
                 if missing_files:
                     messagebox.showwarning(
@@ -128,7 +139,7 @@ class PDFMergerApp:
                         f"Faltan los siguientes archivos en el ZIP de {din_number}: {', '.join(missing_files)}"
                     )
                     all_processed_successfully = False
-                    continue  # No procesar este DIN si faltan archivos
+                    continue  # No procesar este DIN si faltan archivos obligatorios
 
                 output_file_name = f"{din_number}.pdf"
                 output_file_path = os.path.join(destination_folder, output_file_name)
@@ -148,8 +159,6 @@ class PDFMergerApp:
             messagebox.showwarning("Advertencia", "Algunos PDFs no se procesaron correctamente. Revise los errores.")
 
         self.save_config()
-
-
 
     def update_pdf_list(self):
         self.pdf_listbox.delete(0, tk.END)
